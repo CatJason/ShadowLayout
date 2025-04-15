@@ -342,73 +342,97 @@ public class ShadowLayout extends FrameLayout {
 
 
     /**
-     * 被加载到页面后触发。也就是执行Inflater.inflate()方法后
+     * 当View从布局文件加载完成后调用的方法（在Inflater.inflate()执行后触发）
+     * 主要完成以下工作：
+     * 1. 检查虚线模式下的子View限制
+     * 2. 处理绑定的TextView及其文本样式
+     * 3. 处理背景和阴影的显示逻辑
+     * 4. 根据点击状态设置不同的背景
      */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
     protected void onFinishInflate() {
-        super.onFinishInflate();
+        super.onFinishInflate();  // 调用父类方法完成基础初始化
+
+        // ========== 虚线模式处理 ==========
         if (isDashLine()) {
+            // 虚线模式下不允许有子View
             if (getChildAt(0) != null) {
                 throw new UnsupportedOperationException("shapeMode为MODE_DASHLINE，不支持子view");
             }
-            return;
+            return;  // 虚线模式不需要后续处理
         }
-        if (mTextViewResId != -1) {
-            mTextView = findViewById(mTextViewResId);
+
+        // ========== 绑定TextView处理 ==========
+        if (mTextViewResId != -1) {  // 如果设置了绑定的TextView资源ID
+            mTextView = findViewById(mTextViewResId);  // 查找对应的TextView
+
             if (mTextView == null) {
                 throw new NullPointerException("ShadowLayout找不到hl_bindTextView，请确保绑定的资源id在ShadowLayout内");
             } else {
-                if (textColor == -101) {
-                    textColor = mTextView.getCurrentTextColor();
+                // 处理文本颜色（如果未设置则使用TextView的当前颜色）
+                if (textColor == -101) {  // -101表示未设置颜色
+                    textColor = mTextView.getCurrentTextColor();  // 获取当前文本颜色
                 }
 
-
+                // 处理选中状态文本颜色（如果未设置则使用TextView的当前颜色）
                 if (textColor_true == -101) {
                     textColor_true = mTextView.getCurrentTextColor();
                 }
 
+                // 应用文本颜色
                 mTextView.setTextColor(textColor);
+
+                // 如果设置了默认文本，则应用
                 if (!TextUtils.isEmpty(text)) {
                     mTextView.setText(text);
                 }
             }
         }
 
+        // ========== 子View处理 ==========
+        // 获取第一个子View（索引为0）
         firstView = getChildAt(0);
 
+        // 检查背景和阴影的兼容性
         if (layoutBackground != null) {
+            // 如果同时启用了阴影效果且有阴影范围，但没有子View，则抛出异常
             if (isShowShadow == true && mShadowLimit > 0 && getChildAt(0) == null) {
                 throw new UnsupportedOperationException("使用了图片又加上阴影的情况下，必须加上子view才会生效!~");
             }
         }
 
+        // 如果没有子View
         if (firstView == null) {
+            // 将ShadowLayout自身作为firstView
             firstView = ShadowLayout.this;
-            //当子View都没有的时候。默认不使用阴影
+            // 没有子View时默认不显示阴影
             isShowShadow = false;
         }
 
+        // ========== 背景设置处理 ==========
         if (firstView != null) {
-
-            //selector样式不受clickable的影响
+            // 处理选择器模式（selector样式）
             if (shapeModeType == ShadowLayout.MODE_SELECTED) {
+                // 选择器模式不受clickable影响，直接设置背景
                 setmBackGround(layoutBackground, "onFinishInflate");
             } else {
+                // 非选择器模式根据可点击状态设置不同背景
                 if (isClickable) {
+                    // 可点击状态使用正常背景
                     setmBackGround(layoutBackground, "onFinishInflate");
                 } else {
+                    // 不可点击状态使用特殊背景
                     setmBackGround(clickAbleFalseDrawable, "onFinishInflate");
+
+                    // 如果设置了不可点击状态的颜色，则更新渐变Drawable的颜色
                     if (clickAbleFalseColor != -101) {
                         gradientDrawable.setColors(new int[]{clickAbleFalseColor, clickAbleFalseColor});
                     }
                 }
             }
-
         }
-
     }
-
 
     /**
      * 重写点击事件
@@ -738,8 +762,6 @@ public class ShadowLayout extends FrameLayout {
         //cornerRadiusArr 已经判断，如果没有特殊角也是返回一数组
         gradientDrawable.setCornerRadii(cornerRadiusArr);
         gradientDrawable.draw(canvas);
-
-
     }
 
 
@@ -794,52 +816,97 @@ public class ShadowLayout extends FrameLayout {
     }
 
 
+/​**​
+        * 创建并设置波纹(Ripple)效果
+ * 适用于Android 5.0(LOLLIPOP)及以上版本
+ *
+         * @param outRadius 圆角半径数组，用于定义波纹效果的形状边界
+ *                 数组包含8个元素，分别表示4个角的x和y半径
+ *                 顺序：左上x,左上y,右上x,右上y,右下x,右下y,左下x,左下y
+ */
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     private void ripple(float[] outRadius) {
-
+        // ========== 状态和颜色定义 ==========
+        // 定义视图的不同状态数组（按压、聚焦、激活、默认）
         int[][] stateList = new int[][]{
-                new int[]{android.R.attr.state_pressed},
-                new int[]{android.R.attr.state_focused},
-                new int[]{android.R.attr.state_activated},
-                new int[]{}
+                new int[]{android.R.attr.state_pressed},  // 按压状态
+                new int[]{android.R.attr.state_focused},  // 聚焦状态
+                new int[]{android.R.attr.state_activated}, // 激活状态
+                new int[]{}                                // 默认状态
         };
 
-        //正常色
-        int normalColor = mBackGroundColor;
-        //按压后的颜色
-        int pressedColor = mBackGroundColor_true;
+        // 定义不同状态对应的背景颜色
+        int normalColor = mBackGroundColor;      // 默认状态颜色
+        int pressedColor = mBackGroundColor_true; // 按压/聚焦/激活状态颜色
+
+        // 状态颜色列表，顺序与stateList对应
         int[] stateColorList = new int[]{
-                pressedColor,
-                pressedColor,
-                pressedColor,
-                normalColor
+                pressedColor,  // 按压状态颜色
+                pressedColor,  // 聚焦状态颜色
+                pressedColor,  // 激活状态颜色
+                normalColor    // 默认状态颜色
         };
+
+        // 创建颜色状态列表，将状态与颜色关联
         ColorStateList colorStateList = new ColorStateList(stateList, stateColorList);
 
+        // ========== 波纹形状定义 ==========
+        // 创建圆角矩形形状，用于限制波纹效果的范围
+        // outRadius: 定义圆角半径
+        // null: 表示不设置内矩形
+        // null: 表示不设置内圆角半径
         RoundRectShape roundRectShape = new RoundRectShape(outRadius, null, null);
-        ShapeDrawable maskDrawable = new ShapeDrawable();
-        maskDrawable.setShape(roundRectShape);
-        maskDrawable.getPaint().setStyle(Paint.Style.FILL);
 
+        // 创建形状Drawable作为波纹的遮罩
+        ShapeDrawable maskDrawable = new ShapeDrawable();
+        maskDrawable.setShape(roundRectShape);  // 设置形状
+        maskDrawable.getPaint().setStyle(Paint.Style.FILL);  // 设置填充样式
+
+        // ========== 描边处理 ==========
+        // 如果设置了描边颜色（-101表示未设置）
         if (stroke_color != -101) {
+            // 检查是否设置了虚线描边（stroke_dashWidth != -1表示设置了虚线）
             if (stroke_dashWidth != -1) {
-                gradientDrawable.setStroke(Math.round(stroke_with), current_stroke_color, stroke_dashWidth, stroke_dashGap);
+                // 设置虚线描边：宽度、颜色、虚线长度、虚线间隔
+                gradientDrawable.setStroke(
+                        Math.round(stroke_with),     // 描边宽度（四舍五入取整）
+                        current_stroke_color,        // 描边颜色
+                        stroke_dashWidth,            // 虚线长度
+                        stroke_dashGap               // 虚线间隔
+                );
             } else {
-                gradientDrawable.setStroke(Math.round(stroke_with), current_stroke_color);
+                // 设置实线描边：宽度、颜色
+                gradientDrawable.setStroke(
+                        Math.round(stroke_with),     // 描边宽度
+                        current_stroke_color         // 描边颜色
+                );
             }
         }
-        //outRadius 无论是否有特殊角都返回的数组
+
+        // ========== 圆角处理 ==========
+        // 设置渐变Drawable的圆角半径（无论是否有特殊角都使用传入的outRadius数组）
         gradientDrawable.setCornerRadii(outRadius);
+
+        // 如果设置了渐变起始颜色（-101表示未设置）
         if (startColor != -101) {
+            // 应用渐变效果
             gradient(gradientDrawable);
         }
 
-        //contentDrawable实际是默认初始化时展示的；maskDrawable 控制了rippleDrawable的范围
-        RippleDrawable rippleDrawable = new RippleDrawable(colorStateList, gradientDrawable, maskDrawable);
+        // ========== 波纹效果创建 ==========
+        // 创建波纹Drawable：
+        // 参数1: 颜色状态列表（定义不同状态下的波纹颜色）
+        // 参数2: 内容Drawable（默认状态下显示的内容）
+        // 参数3: 遮罩Drawable（限制波纹显示范围的形状）
+        RippleDrawable rippleDrawable = new RippleDrawable(
+                colorStateList,    // 状态颜色列表
+                gradientDrawable,  // 内容Drawable（背景）
+                maskDrawable       // 遮罩Drawable（限制波纹范围）
+        );
+
+        // 将波纹效果设置为第一个子View的背景
         firstView.setBackground(rippleDrawable);
-
     }
-
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     private void gradient(GradientDrawable gradientDrawable) {
@@ -1025,85 +1092,121 @@ public class ShadowLayout extends FrameLayout {
     }
 
 
-    private Bitmap createShadowBitmap(int shadowWidth, int shadowHeight, float cornerRadius, float shadowRadius,
-                                      float dx, float dy, int shadowColor, int fillColor) {
-        //优化阴影bitmap大小,将尺寸缩小至原来的1/4。
+    /**
+     * 创建带有阴影效果的Bitmap
+     *
+     * @param shadowWidth 阴影宽度（原始尺寸）
+     * @param shadowHeight 阴影高度（原始尺寸）
+     * @param cornerRadius 圆角半径（原始值）
+     * @param shadowRadius 阴影模糊半径（原始值）
+     * @param dx 阴影水平偏移量（原始值）
+     * @param dy 阴影垂直偏移量（原始值）
+     * @param shadowColor 阴影颜色
+     * @param fillColor 填充颜色
+     * @return 生成的阴影Bitmap
+     */
+    private Bitmap createShadowBitmap(
+            int shadowWidth,
+            int shadowHeight,
+            float cornerRadius,
+            float shadowRadius,
+            float dx,
+            float dy,
+            int shadowColor,
+            int fillColor
+    ) {
+        // ========== 尺寸优化部分 ==========
+        // 为了优化性能，将阴影Bitmap的尺寸缩小至原来的1/4
+        // 同时按比例调整所有相关参数
+
+        // 调整阴影偏移量
         dx = dx / 4;
         dy = dy / 4;
+
+        // 调整阴影尺寸（确保至少为1像素）
         shadowWidth = shadowWidth / 4 == 0 ? 1 : shadowWidth / 4;
         shadowHeight = shadowHeight / 4 == 0 ? 1 : shadowHeight / 4;
+
+        // 调整圆角和阴影模糊半径
         cornerRadius = cornerRadius / 4;
         shadowRadius = shadowRadius / 4;
 
+        // ========== 创建画布和Bitmap ==========
+        // 使用ARGB_4444配置创建Bitmap（更节省内存）
         Bitmap output = Bitmap.createBitmap(shadowWidth, shadowHeight, Bitmap.Config.ARGB_4444);
         Canvas canvas = new Canvas(output);
 
-        //这里缩小limit的是因为，setShadowLayer后会将bitmap扩散到shadowWidth，shadowHeight
-        //同时也要根据某边的隐藏情况去改变
+        // ========== 计算阴影矩形区域 ==========
+        // 根据各边是否显示阴影，计算实际的矩形绘制区域
 
         float rect_left = 0;
         float rect_right = 0;
         float rect_top = 0;
         float rect_bottom = 0;
+
+        // 左边阴影处理
         if (leftShow) {
+            // 如果显示左边阴影，留出阴影半径的空间
             rect_left = shadowRadius;
         } else {
-//            rect_left = 0;
+            // 如果不显示左边阴影，计算最大圆角半径
             float maxLeftTop = Math.max(cornerRadius, mCornerRadius_leftTop);
             float maxLeftBottom = Math.max(cornerRadius, mCornerRadius_leftBottom);
             float maxLeft = Math.max(maxLeftTop, maxLeftBottom);
-//            rect_left = maxLeft;
+            // 取圆角半径和阴影半径中的较大值
             float trueMaxLeft = Math.max(maxLeft, shadowRadius);
+            // 最终左边距取计算值的一半（经验值，可能需要调整）
             rect_left = trueMaxLeft / 2;
-
         }
 
+        // 上边阴影处理（逻辑与左边类似）
         if (topShow) {
             rect_top = shadowRadius;
         } else {
-//            rect_top = 0;
             float maxLeftTop = Math.max(cornerRadius, mCornerRadius_leftTop);
             float maxRightTop = Math.max(cornerRadius, mCornerRadius_rightTop);
             float maxTop = Math.max(maxLeftTop, maxRightTop);
-//            rect_top = maxTop;
             float trueMaxTop = Math.max(maxTop, shadowRadius);
             rect_top = trueMaxTop / 2;
-
         }
 
+        // 右边阴影处理
         if (rightShow) {
+            // 如果显示右边阴影，留出阴影半径的空间
             rect_right = shadowWidth - shadowRadius;
         } else {
-//            rect_right = shadowWidth;
+            // 如果不显示右边阴影，计算最大圆角半径
             float maxRightTop = Math.max(cornerRadius, mCornerRadius_rightTop);
             float maxRightBottom = Math.max(cornerRadius, mCornerRadius_rightBottom);
             float maxRight = Math.max(maxRightTop, maxRightBottom);
-//            rect_right = shadowWidth - maxRight;
             float trueMaxRight = Math.max(maxRight, shadowRadius);
+            // 最终右边距为宽度减去计算值的一半
             rect_right = shadowWidth - trueMaxRight / 2;
         }
 
-
+        // 下边阴影处理（逻辑与右边类似）
         if (bottomShow) {
             rect_bottom = shadowHeight - shadowRadius;
         } else {
-//            rect_bottom = shadowHeight;
             float maxLeftBottom = Math.max(cornerRadius, mCornerRadius_leftBottom);
             float maxRightBottom = Math.max(cornerRadius, mCornerRadius_rightBottom);
             float maxBottom = Math.max(maxLeftBottom, maxRightBottom);
-//            rect_bottom = shadowHeight - maxBottom;
             float trueMaxBottom = Math.max(maxBottom, shadowRadius);
             rect_bottom = shadowHeight - trueMaxBottom / 2;
         }
 
-
+        // 创建最终的阴影矩形区域
         RectF shadowRect = new RectF(
                 rect_left,
                 rect_top,
                 rect_right,
                 rect_bottom);
 
+        // ========== 偏移量处理 ==========
+        // 根据对称性设置调整矩形区域
+
         if (isSym) {
+            // 对称模式：在矩形四周均匀应用偏移量
             if (dy > 0) {
                 shadowRect.top += dy;
                 shadowRect.bottom -= dy;
@@ -1116,41 +1219,48 @@ public class ShadowLayout extends FrameLayout {
                 shadowRect.left += dx;
                 shadowRect.right -= dx;
             } else if (dx < 0) {
-
                 shadowRect.left += Math.abs(dx);
                 shadowRect.right -= Math.abs(dx);
             }
         } else {
+            // 非对称模式：直接应用偏移量
             shadowRect.top -= dy;
             shadowRect.bottom -= dy;
             shadowRect.right -= dx;
             shadowRect.left -= dx;
         }
 
-
+        // ========== 绘制阴影 ==========
+        // 设置填充颜色
         shadowPaint.setColor(fillColor);
-        if (!isInEditMode()) {//dx  dy
+
+        // 如果不是在编辑模式下，设置阴影层
+        if (!isInEditMode()) {
+            // 注意：这里shadowRadius除以2是经验值，可能需要根据实际效果调整
             shadowPaint.setShadowLayer(shadowRadius / 2, dx, dy, shadowColor);
         }
 
-        if (mCornerRadius_leftBottom == -1 && mCornerRadius_leftTop == -1 && mCornerRadius_rightTop == -1 && mCornerRadius_rightBottom == -1) {
-            //如果没有设置整个属性，那么按原始去画
+        // ========== 圆角处理 ==========
+        // 检查是否设置了各角的独立圆角半径
+        if (mCornerRadius_leftBottom == -1 && mCornerRadius_leftTop == -1
+                && mCornerRadius_rightTop == -1 && mCornerRadius_rightBottom == -1) {
+            // 如果没有设置独立圆角，使用统一的圆角半径绘制圆角矩形
             canvas.drawRoundRect(shadowRect, cornerRadius, cornerRadius, shadowPaint);
         } else {
-            //目前最佳的解决方案
-            rectf.left = leftPadding;
-            rectf.top = topPadding;
-            rectf.right = getWidth() - rightPadding;
-            rectf.bottom = getHeight() - bottomPadding;
+            // 如果设置了独立圆角，需要分别处理每个角的圆角半径
 
-
+            // 设置抗锯齿
             shadowPaint.setAntiAlias(true);
+
+            // 处理左上角圆角半径
             int leftTop;
             if (mCornerRadius_leftTop == -1) {
-                leftTop = (int) mCornerRadius / 4;
+                leftTop = (int) mCornerRadius / 4;  // 使用默认值
             } else {
-                leftTop = (int) mCornerRadius_leftTop / 4;
+                leftTop = (int) mCornerRadius_leftTop / 4;  // 使用自定义值
             }
+
+            // 处理左下角圆角半径
             int leftBottom;
             if (mCornerRadius_leftBottom == -1) {
                 leftBottom = (int) mCornerRadius / 4;
@@ -1158,6 +1268,7 @@ public class ShadowLayout extends FrameLayout {
                 leftBottom = (int) mCornerRadius_leftBottom / 4;
             }
 
+            // 处理右上角圆角半径
             int rightTop;
             if (mCornerRadius_rightTop == -1) {
                 rightTop = (int) mCornerRadius / 4;
@@ -1165,6 +1276,7 @@ public class ShadowLayout extends FrameLayout {
                 rightTop = (int) mCornerRadius_rightTop / 4;
             }
 
+            // 处理右下角圆角半径
             int rightBottom;
             if (mCornerRadius_rightBottom == -1) {
                 rightBottom = (int) mCornerRadius / 4;
@@ -1172,7 +1284,16 @@ public class ShadowLayout extends FrameLayout {
                 rightBottom = (int) mCornerRadius_rightBottom / 4;
             }
 
-            float[] outerR = new float[]{leftTop, leftTop, rightTop, rightTop, rightBottom, rightBottom, leftBottom, leftBottom};//左上，右上，右下，左下
+            // 创建圆角数组（每对值表示一个角的x和y半径）
+            // 顺序：左上、右上、右下、左下
+            float[] outerR = new float[]{
+                    leftTop, leftTop,     // 左上
+                    rightTop, rightTop,   // 右上
+                    rightBottom, rightBottom, // 右下
+                    leftBottom, leftBottom    // 左下
+            };
+
+            // 使用Path绘制自定义圆角的矩形
             Path path = new Path();
             path.addRoundRect(shadowRect, outerR, Path.Direction.CW);
             canvas.drawPath(path, shadowPaint);
@@ -1180,7 +1301,6 @@ public class ShadowLayout extends FrameLayout {
 
         return output;
     }
-
 
     private void isAddAlpha(int color) {
         //获取单签颜色值的透明度，如果没有设置透明度，默认加上#2a
