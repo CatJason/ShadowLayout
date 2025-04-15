@@ -136,204 +136,268 @@ public class ShadowLayout extends FrameLayout {
         initView(context, attrs);
     }
 
+    /**
+     * 初始化视图
+     * 功能：根据自定义属性初始化View的各种绘制参数和对象
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
+     *
+     * @param context 上下文对象
+     * @param attrs XML属性集合
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     private void initView(Context context, AttributeSet attrs) {
+        // 1. 初始化自定义属性
         initAttributes(attrs);
+
+        // 2. 如果是虚线模式则直接返回
         if (isDashLine()) {
             return;
         }
+
+        // 3. 初始化阴影画笔
         shadowPaint = new Paint();
-        shadowPaint.setAntiAlias(true);
-        shadowPaint.setStyle(Paint.Style.FILL);
+        shadowPaint.setAntiAlias(true); // 开启抗锯齿
+        shadowPaint.setStyle(Paint.Style.FILL); // 设置填充样式
+
+        // 4. 初始化渐变Drawable
         gradientDrawable = new GradientDrawable();
+        // 设置默认背景色（双色相同表示纯色）
         gradientDrawable.setColors(new int[]{mBackGroundColor, mBackGroundColor});
+
+        // 5. 如果有描边色则设置当前描边色
         if (stroke_color != -101) {
             current_stroke_color = stroke_color;
         }
+
+        // 6. 设置内边距
         setPadding();
     }
 
-    //是否为线性模式
+    /**
+     * 判断是否为虚线模式
+     * @return true-虚线模式 false-非虚线模式
+     */
     private boolean isDashLine() {
         return shapeModeType == ShadowLayout.MODE_DASHLINE;
     }
 
+    /**
+     * 初始化虚线绘制参数
+     * 功能：设置虚线画笔和路径对象
+     */
     private void initDashLine() {
+        // 1. 创建虚线画笔
         mPaintDash = new Paint();
-        mPaintDash.setAntiAlias(true);
-        mPaintDash.setColor(stroke_color);
-        mPaintDash.setStyle(Paint.Style.STROKE);
-        mPaintDash.setPathEffect(new DashPathEffect(new float[]{stroke_dashWidth, stroke_dashGap}, 0));
+        mPaintDash.setAntiAlias(true); // 开启抗锯齿
+        mPaintDash.setColor(stroke_color); // 设置虚线颜色
+        mPaintDash.setStyle(Paint.Style.STROKE); // 设置描边样式
+
+        // 2. 设置虚线效果
+        // 参数1: 虚线模式数组（实线长度，间隔长度）
+        // 参数2: 相位偏移量
+        mPaintDash.setPathEffect(new DashPathEffect(
+                new float[]{stroke_dashWidth, stroke_dashGap}, 0));
+
+        // 3. 创建路径对象
         dashPath = new Path();
     }
 
+    /**
+     * 初始化自定义属性
+     * 功能：从XML属性中读取并初始化各种样式参数
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
+     *
+     * @param attrs XML属性集合
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     private void initAttributes(AttributeSet attrs) {
+        // 获取属性数组
         TypedArray attr = getContext().obtainStyledAttributes(attrs, R.styleable.ShadowLayout);
-        shapeModeType = attr.getInt(R.styleable.ShadowLayout_hl_shapeMode, ShadowLayout.MODE_PRESSED);
-        //如果为线性模式，只用到以下属性
-        if (isDashLine()) {
-            stroke_color = attr.getColor(R.styleable.ShadowLayout_hl_strokeColor, -101);
-            stroke_dashWidth = attr.getDimension(R.styleable.ShadowLayout_hl_stroke_dashWidth, -1);
-            stroke_dashGap = attr.getDimension(R.styleable.ShadowLayout_hl_stroke_dashGap, -1);
 
+        // ========== 基本模式设置 ==========
+        // 获取形状模式，默认为按压模式(MODE_PRESSED)
+        shapeModeType = attr.getInt(R.styleable.ShadowLayout_hl_shapeMode, ShadowLayout.MODE_PRESSED);
+
+        // ========== 虚线模式特殊处理 ==========
+        if (isDashLine()) {
+            // 获取虚线相关属性
+            stroke_color = attr.getColor(R.styleable.ShadowLayout_hl_strokeColor, -101); // 虚线颜色
+            stroke_dashWidth = attr.getDimension(R.styleable.ShadowLayout_hl_stroke_dashWidth, -1); // 虚线宽度
+            stroke_dashGap = attr.getDimension(R.styleable.ShadowLayout_hl_stroke_dashGap, -1); // 虚线间隔
+
+            // 参数校验
             if (stroke_color == -101) {
                 throw new UnsupportedOperationException("shapeMode为MODE_DASHLINE,需设置stroke_color值");
             }
-
             if (stroke_dashWidth == -1) {
                 throw new UnsupportedOperationException("shapeMode为MODE_DASHLINE,需设置stroke_dashWidth值");
             }
-
-            if ((stroke_dashWidth == -1 && stroke_dashGap != -1) || (stroke_dashWidth != -1 && stroke_dashGap == -1)) {
-                throw new UnsupportedOperationException("使用了虚线边框,必须设置以下2个属性：ShadowLayout_hl_stroke_dashWidth，ShadowLayout_hl_stroke_dashGap");
+            if ((stroke_dashWidth == -1 && stroke_dashGap != -1) ||
+                    (stroke_dashWidth != -1 && stroke_dashGap == -1)) {
+                throw new UnsupportedOperationException("使用了虚线边框,必须同时设置以下2个属性：" +
+                        "ShadowLayout_hl_stroke_dashWidth，ShadowLayout_hl_stroke_dashGap");
             }
-            initDashLine();
 
-            attr.recycle();
-            return;
+            initDashLine(); // 初始化虚线绘制参数
+            attr.recycle(); // 释放资源
+            return; // 虚线模式不需要后续处理
         }
 
-        isShowShadow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHidden, false);
-        leftShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenLeft, false);
-        rightShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenRight, false);
-        bottomShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenBottom, false);
-        topShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenTop, false);
-        mCornerRadius = attr.getDimension(R.styleable.ShadowLayout_hl_cornerRadius, getResources().getDimension(R.dimen.dp_0));
+        // ========== 阴影相关属性 ==========
+        isShowShadow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHidden, false); // 是否显示阴影
+        // 各边阴影显示控制
+        leftShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenLeft, false); // 左边阴影
+        rightShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenRight, false); // 右边阴影
+        bottomShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenBottom, false); // 底部阴影
+        topShow = !attr.getBoolean(R.styleable.ShadowLayout_hl_shadowHiddenTop, false); // 顶部阴影
+
+        // ========== 圆角相关属性 ==========
+        mCornerRadius = attr.getDimension(R.styleable.ShadowLayout_hl_cornerRadius,
+                getResources().getDimension(R.dimen.dp_0)); // 统一圆角半径
+        // 各角单独设置的圆角半径(-1表示未设置)
         mCornerRadius_leftTop = attr.getDimension(R.styleable.ShadowLayout_hl_cornerRadius_leftTop, -1);
         mCornerRadius_leftBottom = attr.getDimension(R.styleable.ShadowLayout_hl_cornerRadius_leftBottom, -1);
         mCornerRadius_rightTop = attr.getDimension(R.styleable.ShadowLayout_hl_cornerRadius_rightTop, -1);
         mCornerRadius_rightBottom = attr.getDimension(R.styleable.ShadowLayout_hl_cornerRadius_rightBottom, -1);
 
-        //默认扩散区域宽度
-        mShadowLimit = attr.getDimension(R.styleable.ShadowLayout_hl_shadowLimit, 0);
+        // ========== 阴影效果参数 ==========
+        mShadowLimit = attr.getDimension(R.styleable.ShadowLayout_hl_shadowLimit, 0); // 阴影扩散范围
         if (mShadowLimit == 0) {
-            //如果阴影没有设置阴影扩散区域，那么默认隐藏阴影
-            isShowShadow = false;
+            isShowShadow = false; // 阴影范围为0时不显示阴影
         }
+        mDx = attr.getDimension(R.styleable.ShadowLayout_hl_shadowOffsetX, 0); // X轴偏移
+        mDy = attr.getDimension(R.styleable.ShadowLayout_hl_shadowOffsetY, 0); // Y轴偏移
+        mShadowColor = attr.getColor(R.styleable.ShadowLayout_hl_shadowColor,
+                getResources().getColor(R.color.default_shadow_color)); // 阴影颜色
+        isSym = attr.getBoolean(R.styleable.ShadowLayout_hl_shadowSymmetry, true); // 是否对称阴影
 
-        //x轴偏移量
-        mDx = attr.getDimension(R.styleable.ShadowLayout_hl_shadowOffsetX, 0);
-        //y轴偏移量
-        mDy = attr.getDimension(R.styleable.ShadowLayout_hl_shadowOffsetY, 0);
-        mShadowColor = attr.getColor(R.styleable.ShadowLayout_hl_shadowColor, getResources().getColor(R.color.default_shadow_color));
-
-        isSym = attr.getBoolean(R.styleable.ShadowLayout_hl_shadowSymmetry, true);
-
-        //背景颜色的点击(默认颜色为白色)
+        // ========== 背景相关属性 ==========
+        // 默认背景色(白色)
         mBackGroundColor = getResources().getColor(R.color.default_shadowback_color);
-
+        // 获取背景Drawable
         Drawable background = attr.getDrawable(R.styleable.ShadowLayout_hl_layoutBackground);
         if (background != null) {
             if (background instanceof ColorDrawable) {
-                ColorDrawable colorDrawable = (ColorDrawable) background;
-                mBackGroundColor = colorDrawable.getColor();
-
+                // 背景是颜色Drawable
+                mBackGroundColor = ((ColorDrawable) background).getColor();
             } else {
+                // 背景是图片Drawable
                 layoutBackground = background;
             }
         }
 
+        // 获取选中状态背景
         Drawable trueBackground = attr.getDrawable(R.styleable.ShadowLayout_hl_layoutBackground_true);
         if (trueBackground != null) {
             if (trueBackground instanceof ColorDrawable) {
-                ColorDrawable colorDrawableTrue = (ColorDrawable) trueBackground;
-                mBackGroundColor_true = colorDrawableTrue.getColor();
-
+                mBackGroundColor_true = ((ColorDrawable) trueBackground).getColor();
             } else {
                 layoutBackground_true = trueBackground;
             }
         }
 
+        // 背景属性校验
         if (mBackGroundColor_true != -101 && layoutBackground != null) {
-            throw new UnsupportedOperationException("使用了ShadowLayout_hl_layoutBackground_true属性，必须先设置ShadowLayout_hl_layoutBackground属性。且设置颜色时，必须保持都为颜色");
+            throw new UnsupportedOperationException("使用了选中状态背景色时，必须同时设置默认背景色");
         }
-
         if (layoutBackground == null && layoutBackground_true != null) {
-            throw new UnsupportedOperationException("使用了ShadowLayout_hl_layoutBackground_true属性，必须先设置ShadowLayout_hl_layoutBackground属性。且设置图片时，必须保持都为图片");
+            throw new UnsupportedOperationException("使用了选中状态背景图时，必须同时设置默认背景图");
         }
 
-
-        //边框颜色的点击
-        stroke_color = attr.getColor(R.styleable.ShadowLayout_hl_strokeColor, -101);
-        stroke_color_true = attr.getColor(R.styleable.ShadowLayout_hl_strokeColor_true, -101);
-
+        // ========== 描边相关属性 ==========
+        stroke_color = attr.getColor(R.styleable.ShadowLayout_hl_strokeColor, -101); // 默认描边色
+        stroke_color_true = attr.getColor(R.styleable.ShadowLayout_hl_strokeColor_true, -101); // 选中状态描边色
         if (stroke_color == -101 && stroke_color_true != -101) {
-            throw new UnsupportedOperationException("使用了ShadowLayout_hl_strokeColor_true属性，必须先设置ShadowLayout_hl_strokeColor属性");
+            throw new UnsupportedOperationException("使用了选中状态描边色时，必须同时设置默认描边色");
         }
+        stroke_with = attr.getDimension(R.styleable.ShadowLayout_hl_strokeWith, dip2px(1)); // 描边宽度(默认1dp)
 
-        stroke_with = attr.getDimension(R.styleable.ShadowLayout_hl_strokeWith, dip2px(1));
-
+        // 虚线描边属性
         stroke_dashWidth = attr.getDimension(R.styleable.ShadowLayout_hl_stroke_dashWidth, -1);
         stroke_dashGap = attr.getDimension(R.styleable.ShadowLayout_hl_stroke_dashGap, -1);
-        if ((stroke_dashWidth == -1 && stroke_dashGap != -1) || (stroke_dashWidth != -1 && stroke_dashGap == -1)) {
-            throw new UnsupportedOperationException("使用了虚线边框,必须设置以下2个属性：ShadowLayout_hl_stroke_dashWidth，ShadowLayout_hl_stroke_dashGap");
+        if ((stroke_dashWidth == -1 && stroke_dashGap != -1) ||
+                (stroke_dashWidth != -1 && stroke_dashGap == -1)) {
+            throw new UnsupportedOperationException("使用虚线描边时必须同时设置虚线段长度和间隔");
         }
 
+        // ========== 不可点击状态背景 ==========
         Drawable clickAbleFalseBackground = attr.getDrawable(R.styleable.ShadowLayout_hl_layoutBackground_clickFalse);
         if (clickAbleFalseBackground != null) {
             if (clickAbleFalseBackground instanceof ColorDrawable) {
-                ColorDrawable colorDrawableClickableFalse = (ColorDrawable) clickAbleFalseBackground;
-                clickAbleFalseColor = colorDrawableClickableFalse.getColor();
+                clickAbleFalseColor = ((ColorDrawable) clickAbleFalseBackground).getColor();
             } else {
                 clickAbleFalseDrawable = clickAbleFalseBackground;
             }
         }
 
-
-        startColor = attr.getColor(R.styleable.ShadowLayout_hl_startColor, -101);
-        centerColor = attr.getColor(R.styleable.ShadowLayout_hl_centerColor, -101);
-        endColor = attr.getColor(R.styleable.ShadowLayout_hl_endColor, -101);
-        if (startColor != -101) {
-            //说明设置了渐变色的起始色
-            if (endColor == -101) {
-                throw new UnsupportedOperationException("使用了ShadowLayout_hl_startColor渐变起始色，必须搭配终止色ShadowLayout_hl_endColor");
-            }
+        // ========== 渐变背景相关属性 ==========
+        startColor = attr.getColor(R.styleable.ShadowLayout_hl_startColor, -101); // 渐变起始色
+        centerColor = attr.getColor(R.styleable.ShadowLayout_hl_centerColor, -101); // 渐变中间色
+        endColor = attr.getColor(R.styleable.ShadowLayout_hl_endColor, -101); // 渐变结束色
+        if (startColor != -101 && endColor == -101) {
+            throw new UnsupportedOperationException("设置渐变起始色时必须同时设置结束色");
         }
 
-
+        // 渐变角度(必须是45的倍数)
         angle = attr.getInt(R.styleable.ShadowLayout_hl_angle, 0);
         if (angle % 45 != 0) {
-            throw new IllegalArgumentException("Linear gradient requires 'angle' attribute to be a multiple of 45");
+            throw new IllegalArgumentException("渐变角度必须是45的倍数");
         }
 
-
+        // ========== 水波纹模式校验 ==========
         if (shapeModeType == ShadowLayout.MODE_RIPPLE) {
-            //如果是ripple的话
             if (mBackGroundColor == -101 || mBackGroundColor_true == -101) {
-                throw new NullPointerException("使用了ShadowLayout的水波纹，必须设置使用了ShadowLayout_hl_layoutBackground和使用了ShadowLayout_hl_layoutBackground_true属性，且为颜色值");
+                throw new NullPointerException("水波纹模式必须设置默认和选中状态背景色");
             }
-
-            //如果是设置了图片的话，那么也不支持水波纹
             if (layoutBackground != null) {
-                shapeModeType = ShadowLayout.MODE_PRESSED;
+                shapeModeType = ShadowLayout.MODE_PRESSED; // 背景是图片时降级为按压模式
             }
         }
 
+        // ========== 文本相关属性 ==========
+        mTextViewResId = attr.getResourceId(R.styleable.ShadowLayout_hl_bindTextView, -1); // 绑定TextView ID
+        textColor = attr.getColor(R.styleable.ShadowLayout_hl_textColor, -101); // 默认文本颜色
+        textColor_true = attr.getColor(R.styleable.ShadowLayout_hl_textColor_true, -101); // 选中状态文本颜色
+        text = attr.getString(R.styleable.ShadowLayout_hl_text); // 默认文本
+        text_true = attr.getString(R.styleable.ShadowLayout_hl_text_true); // 选中状态文本
 
-        mTextViewResId = attr.getResourceId(R.styleable.ShadowLayout_hl_bindTextView, -1);
-        textColor = attr.getColor(R.styleable.ShadowLayout_hl_textColor, -101);
-        textColor_true = attr.getColor(R.styleable.ShadowLayout_hl_textColor_true, -101);
-        text = attr.getString(R.styleable.ShadowLayout_hl_text);
-        text_true = attr.getString(R.styleable.ShadowLayout_hl_text_true);
-
-        isClickable = attr.getBoolean(R.styleable.ShadowLayout_clickable, true);
+        // ========== 可点击状态 ==========
+        isClickable = attr.getBoolean(R.styleable.ShadowLayout_clickable, true); // 是否可点击
         setClickable(isClickable);
-        attr.recycle();
 
+        // 释放TypedArray资源
+        attr.recycle();
     }
 
+    /**
+     * View尺寸变化回调方法
+     * 功能：当View尺寸发生变化时，重新设置背景和渐变效果
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
+     *
+     * @param w    新的宽度
+     * @param h    新的高度
+     * @param oldw 旧的宽度
+     * @param oldh 旧的高度
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
+        super.onSizeChanged(w, h, oldw, oldh); // 调用父类方法
+
+        // ========== 虚线模式特殊处理 ==========
         if (isDashLine()) {
-            //解决不执行onDraw方法的bug
+            // 设置透明背景解决虚线模式下onDraw不执行的问题
             this.setBackgroundColor(Color.parseColor("#00000000"));
-            return;
+            return; // 虚线模式不需要后续处理
         }
+
+        // ========== 正常模式处理 ==========
+        // 确保新尺寸有效（宽高都大于0）
         if (w > 0 && h > 0) {
+            // 1. 设置兼容性背景（处理阴影等效果）
             setBackgroundCompat(w, h);
+
+            // 2. 如果设置了渐变起始色（-101表示未设置），则应用渐变效果
             if (startColor != -101) {
                 gradient(gradientDrawable);
             }
@@ -435,31 +499,39 @@ public class ShadowLayout extends FrameLayout {
     }
 
     /**
-     * 重写点击事件
+     * 重写触摸事件处理逻辑
+     * 主要处理两种模式下的触摸反馈：
+     * 1. 水波纹模式(MODE_RIPPLE)：使用系统自带的水波纹效果
+     * 2. 按压模式(MODE_PRESSED)：自定义按压状态的颜色变化效果
      *
-     * @param event
-     * @return
+     * @param event 触摸事件对象
+     * @return 返回事件处理结果，通常继续父类处理流程
      */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // ========== 水波纹模式处理 ==========
         if (shapeModeType == ShadowLayout.MODE_RIPPLE) {
-            //如果是水波纹模式，那么不需要进行下面的渲染，采用系统ripper即可
-            if (isClickable) {
+            // 水波纹模式下直接使用系统效果，只需处理文本状态变化
+            if (isClickable) {  // 仅在可点击状态下处理
                 switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
+                    case MotionEvent.ACTION_DOWN:  // 按下事件
                         if (mTextView != null) {
+                            // 切换到按下状态文本颜色
                             mTextView.setTextColor(textColor_true);
+                            // 如果有按下状态文本则切换
                             if (!TextUtils.isEmpty(text_true)) {
                                 mTextView.setText(text_true);
                             }
                         }
                         break;
 
-                    case MotionEvent.ACTION_CANCEL:
-                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:  // 取消事件
+                    case MotionEvent.ACTION_UP:     // 抬起事件
                         if (mTextView != null) {
+                            // 恢复默认文本颜色
                             mTextView.setTextColor(textColor);
+                            // 恢复默认文本内容
                             if (!TextUtils.isEmpty(text)) {
                                 mTextView.setText(text);
                             }
@@ -467,52 +539,62 @@ public class ShadowLayout extends FrameLayout {
                         break;
                 }
             }
-            return super.onTouchEvent(event);
+            return super.onTouchEvent(event);  // 继续父类处理流程
         }
 
+        // ========== 按压模式处理 ==========
+        // 检查是否需要处理按压效果（设置了按压状态颜色或背景）
         if (mBackGroundColor_true != -101 || stroke_color_true != -101 || layoutBackground_true != null) {
+            // 仅在可点击且为按压模式下处理
             if (isClickable && shapeModeType == ShadowLayout.MODE_PRESSED) {
                 switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        if (mBackGroundColor_true != -101) {
-                            //切换的颜色
+                    case MotionEvent.ACTION_DOWN:  // 按下事件
+                        // 背景色变化处理
+                        if (mBackGroundColor_true != -101) {  // -101表示未设置
+                            // 切换到按压状态背景色（单色）
                             gradientDrawable.setColors(new int[]{mBackGroundColor_true, mBackGroundColor_true});
                         }
+                        // 描边色变化处理
                         if (stroke_color_true != -101) {
-                            current_stroke_color = stroke_color_true;
+                            current_stroke_color = stroke_color_true;  // 更新当前描边色
                         }
-
+                        // 背景图片变化处理
                         if (layoutBackground_true != null) {
                             setmBackGround(layoutBackground_true, "onTouchEvent");
                         }
-                        postInvalidate();
+                        postInvalidate();  // 请求重绘
 
+                        // 文本状态变化处理
                         if (mTextView != null) {
-                            mTextView.setTextColor(textColor_true);
-                            if (!TextUtils.isEmpty(text_true)) {
+                            mTextView.setTextColor(textColor_true);  // 按压状态文本色
+                            if (!TextUtils.isEmpty(text_true)) {    // 按压状态文本内容
                                 mTextView.setText(text_true);
                             }
                         }
                         break;
 
-                    case MotionEvent.ACTION_CANCEL:
-                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:  // 取消事件
+                    case MotionEvent.ACTION_UP:     // 抬起事件
+                        // 恢复默认背景色（单色）
                         gradientDrawable.setColors(new int[]{mBackGroundColor, mBackGroundColor});
+                        // 如果设置了渐变背景则重新应用渐变
                         if (startColor != -101) {
                             gradient(gradientDrawable);
                         }
+                        // 恢复默认描边色
                         if (stroke_color != -101) {
                             current_stroke_color = stroke_color;
                         }
-
+                        // 恢复默认背景图片
                         if (layoutBackground != null) {
                             setmBackGround(layoutBackground, "onTouchEvent");
                         }
-                        postInvalidate();
+                        postInvalidate();  // 请求重绘
 
+                        // 恢复默认文本状态
                         if (mTextView != null) {
-                            mTextView.setTextColor(textColor);
-                            if (!TextUtils.isEmpty(text)) {
+                            mTextView.setTextColor(textColor);  // 默认文本色
+                            if (!TextUtils.isEmpty(text)) {     // 默认文本内容
                                 mTextView.setText(text);
                             }
                         }
@@ -520,75 +602,94 @@ public class ShadowLayout extends FrameLayout {
                 }
             }
         }
+
+        // 继续父类的触摸事件处理
         return super.onTouchEvent(event);
     }
 
-
     /**
-     * 切换select样式
+     * 设置选中状态切换效果
+     * 功能：处理选中状态下的UI变化，包括背景色、描边色、背景图片和文本的切换
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
      *
-     * @param selected
+     * @param selected 是否选中
      */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
     public void setSelected(boolean selected) {
-        super.setSelected(selected);
+        super.setSelected(selected); // 调用父类方法设置选中状态
+
+        // 检查View是否已完成布局（宽度不为0）
         if (getWidth() != 0) {
+            // 只有在SELECTED模式下才处理选中状态变化
             if (shapeModeType == ShadowLayout.MODE_SELECTED) {
                 if (selected) {
-                    if (mBackGroundColor_true != -101) {
+                    // ========== 选中状态 ==========
+                    // 1. 背景色处理：如果设置了选中状态背景色
+                    if (mBackGroundColor_true != -101) { // -101表示未设置
                         gradientDrawable.setColors(new int[]{mBackGroundColor_true, mBackGroundColor_true});
                     }
 
+                    // 2. 描边色处理：如果设置了选中状态描边色
                     if (stroke_color_true != -101) {
                         current_stroke_color = stroke_color_true;
                     }
+
+                    // 3. 背景图片处理：如果设置了选中状态背景图
                     if (layoutBackground_true != null) {
                         setmBackGround(layoutBackground_true, "setSelected");
                     }
 
+                    // 4. 文本处理：如果有绑定TextView
                     if (mTextView != null) {
-                        mTextView.setTextColor(textColor_true);
-                        if (!TextUtils.isEmpty(text_true)) {
+                        mTextView.setTextColor(textColor_true); // 设置选中文本颜色
+                        if (!TextUtils.isEmpty(text_true)) {   // 设置选中文本内容
                             mTextView.setText(text_true);
                         }
                     }
 
                 } else {
+                    // ========== 非选中状态 ==========
+                    // 1. 恢复默认背景色
                     gradientDrawable.setColors(new int[]{mBackGroundColor, mBackGroundColor});
+                    // 如果有渐变效果则重新应用
                     if (startColor != -101) {
                         gradient(gradientDrawable);
                     }
 
+                    // 2. 恢复默认描边色
                     if (stroke_color != -101) {
                         current_stroke_color = stroke_color;
                     }
 
+                    // 3. 恢复默认背景图片
                     if (layoutBackground != null) {
                         setmBackGround(layoutBackground, "setSelected");
                     }
 
+                    // 4. 恢复默认文本样式
                     if (mTextView != null) {
-                        mTextView.setTextColor(textColor);
-                        if (!TextUtils.isEmpty(text)) {
+                        mTextView.setTextColor(textColor); // 恢复默认文本颜色
+                        if (!TextUtils.isEmpty(text)) {    // 恢复默认文本内容
                             mTextView.setText(text);
                         }
                     }
-
                 }
+                // 请求重绘View
                 postInvalidate();
             }
         } else {
+            // 如果View还未完成布局，添加布局监听器，在布局完成后再次设置选中状态
             addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
                 @Override
-                public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
-                    removeOnLayoutChangeListener(this);
-                    setSelected(isSelected());
+                public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                                           int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                    removeOnLayoutChangeListener(this); // 移除监听器避免重复调用
+                    setSelected(isSelected());         // 重新设置选中状态
                 }
             });
         }
     }
-
 
     //解决xml设置clickable = false时。代码设置true时，点击事件无效的bug
     private OnClickListener onClickListener;
@@ -651,119 +752,225 @@ public class ShadowLayout extends FrameLayout {
 
 
     /**
-     * 对子View进行绘制，也是剪裁子view的关键
+     * 重写dispatchDraw方法，用于对子View进行裁剪绘制
+     * 主要功能：根据圆角设置裁剪子View的显示区域，实现圆角效果
+     * 适用于Android 5.0(LOLLIPOP)及以上版本
      *
-     * @param canvas
+     * @param canvas 用于绘制的画布对象
      */
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void dispatchDraw(Canvas canvas) {
-
+        // 计算实际高度（去除padding后的高度）
         int trueHeight = (int) (rectf.bottom - rectf.top);
+
+        // 检查是否存在子View
         if (getChildAt(0) != null) {
-            if (mCornerRadius_leftTop == -1 && mCornerRadius_leftBottom == -1 && mCornerRadius_rightTop == -1 && mCornerRadius_rightBottom == -1) {
-                //说明没有设置过任何特殊角、且是半圆。
+            // 判断是否设置了任何特殊圆角（四个角都为-1表示未设置特殊圆角）
+            if (mCornerRadius_leftTop == -1 && mCornerRadius_leftBottom == -1
+                    && mCornerRadius_rightTop == -1 && mCornerRadius_rightBottom == -1) {
+
+                // 情况1：未设置特殊圆角，使用统一圆角处理
+                // 检查圆角半径是否超过高度的一半（即是否要绘制半圆效果）
                 if (mCornerRadius > trueHeight / 2) {
+                    // 创建半圆路径（圆角半径取高度的一半）
                     Path path = new Path();
-                    path.addRoundRect(rectf, trueHeight / 2, trueHeight / 2, Path.Direction.CW);
+                    path.addRoundRect(rectf,
+                            trueHeight / 2,  // x方向圆角半径
+                            trueHeight / 2,  // y方向圆角半径
+                            Path.Direction.CW); // 顺时针方向绘制
+                    // 裁剪画布为半圆形状
                     canvas.clipPath(path);
                 } else {
+                    // 创建普通圆角路径（使用预设的统一圆角半径）
                     Path path = new Path();
-                    path.addRoundRect(rectf, mCornerRadius, mCornerRadius, Path.Direction.CW);
+                    path.addRoundRect(rectf,
+                            mCornerRadius,  // x方向圆角半径
+                            mCornerRadius,  // y方向圆角半径
+                            Path.Direction.CW); // 顺时针方向绘制
+                    // 裁剪画布为圆角矩形
                     canvas.clipPath(path);
                 }
             } else {
+                // 情况2：设置了特殊圆角（四个角可能有不同的圆角半径）
+                // 获取各角的实际圆角值（考虑高度限制）
                 float[] outerR = getCornerValue(trueHeight);
+
+                // 创建自定义圆角路径
                 Path path = new Path();
-                path.addRoundRect(leftPadding, topPadding, getWidth() - rightPadding, getHeight() - bottomPadding, outerR, Path.Direction.CW);
+                // 计算实际绘制区域（考虑padding）
+                float left = leftPadding;
+                float top = topPadding;
+                float right = getWidth() - rightPadding;
+                float bottom = getHeight() - bottomPadding;
+
+                // 添加自定义圆角矩形路径
+                path.addRoundRect(left, top, right, bottom,
+                        outerR,         // 各角圆角半径数组
+                        Path.Direction.CW); // 顺时针方向绘制
+                // 裁剪画布为自定义圆角形状
                 canvas.clipPath(path);
             }
-
         }
+
+        // 调用父类方法继续绘制流程（在裁剪后的画布上绘制子View）
         super.dispatchDraw(canvas);
     }
 
-
+    /**
+     * 自定义绘制方法，处理不同模式下的View绘制逻辑
+     * 适用版本：Android 5.0(LOLLIPOP)及以上
+     *
+     * @param canvas 用于绘制的画布对象
+     */
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        //如果为MODE_DASHLINE的情况下，走drawLine方法
+        super.onDraw(canvas); // 先调用父类绘制方法
+
+        // ========== 虚线模式处理 ==========
         if (isDashLine()) {
+            // 如果是虚线模式，直接绘制虚线并返回
             drawLine(canvas);
             return;
         }
 
-        rectf.left = leftPadding;
-        rectf.top = topPadding;
-        rectf.right = getWidth() - rightPadding;
-        rectf.bottom = getHeight() - bottomPadding;
+        // ========== 计算绘制区域 ==========
+        // 设置绘制矩形区域（考虑padding）
+        rectf.left = leftPadding;                     // 左边界（含左padding）
+        rectf.top = topPadding;                       // 上边界（含上padding）
+        rectf.right = getWidth() - rightPadding;      // 右边界（减去右padding）
+        rectf.bottom = getHeight() - bottomPadding;   // 下边界（减去下padding）
+
+        // 计算实际内容高度（去除padding后的高度）
         int trueHeight = (int) (rectf.bottom - rectf.top);
 
-        //是否设置了stroke
+        // ========== 描边处理 ==========
+        // 检查是否设置了描边（-101表示未设置）
         if (stroke_color != -101) {
-            //判断当前stroke高度是否大于控件高度的一半
+            // 如果描边宽度超过内容高度的一半，则限制为高度的一半
             if (stroke_with > trueHeight / 2) {
                 stroke_with = trueHeight / 2;
             }
         }
 
-        //设置了背景图片的话就不做处理
+        // ========== 背景绘制处理 ==========
+        // 如果没有设置背景图片（普通背景和按压状态背景都为空）
         if (layoutBackground == null && layoutBackground_true == null) {
-            //outerR 已经做了对特殊角的判断。无论是特殊角还是统一的都返回一组数组角度 outerR
+            // 获取圆角半径数组（已处理特殊角情况）
             float[] outerR = getCornerValue(trueHeight);
-            //如果不是ripple模式
+
+            // 根据模式选择不同的绘制方式
             if (shapeModeType != ShadowLayout.MODE_RIPPLE) {
+                // 非水波纹模式：直接绘制渐变背景
                 drawGradientDrawable(canvas, rectf, outerR);
             } else {
+                // 水波纹模式：设置波纹效果
                 ripple(outerR);
             }
         }
     }
 
+    /**
+     * 绘制虚线分割线
+     * 根据View的宽高比例自动判断绘制横向或纵向的虚线
+     *
+     * @param canvas 用于绘制的画布对象
+     */
     public void drawLine(Canvas canvas) {
+        // 获取当前View的宽度和高度
         int currentWidth = getWidth();
         int currentHeight = getHeight();
 
+        // 判断View的宽高比例决定绘制方向
         if (currentWidth > currentHeight) {
-            //说明是横向的
+            // ========== 横向虚线绘制 ==========
+            // 设置画笔宽度为View的高度（使线条填满高度）
             mPaintDash.setStrokeWidth(currentHeight);
-            dashPath.reset();
-            dashPath.moveTo(0,currentHeight/2);
-            dashPath.lineTo(currentWidth,currentHeight/2);
-        } else {
-            //说明是纵向的
-            mPaintDash.setStrokeWidth(currentWidth);
-            dashPath.reset();
-            dashPath.moveTo(currentWidth/2,0);
-            dashPath.lineTo(currentWidth/2,currentHeight);
 
+            // 重置路径并设置起点和终点
+            dashPath.reset();
+            // 起点：左侧中点 (0, height/2)
+            dashPath.moveTo(0, currentHeight/2);
+            // 终点：右侧中点 (width, height/2)
+            dashPath.lineTo(currentWidth, currentHeight/2);
+        } else {
+            // ========== 纵向虚线绘制 ==========
+            // 设置画笔宽度为View的宽度（使线条填满宽度）
+            mPaintDash.setStrokeWidth(currentWidth);
+
+            // 重置路径并设置起点和终点
+            dashPath.reset();
+            // 起点：顶部中点 (width/2, 0)
+            dashPath.moveTo(currentWidth/2, 0);
+            // 终点：底部中点 (width/2, height)
+            dashPath.lineTo(currentWidth/2, currentHeight);
         }
 
+        // 在画布上绘制虚线路径
         canvas.drawPath(dashPath, mPaintDash);
     }
 
-
+    /**
+     * 绘制渐变Drawable到指定Canvas
+     * 适用于Android 4.1(JELLY_BEAN)及以上版本
+     *
+     * @param canvas 目标画布，用于绘制渐变效果
+     * @param rectf 绘制区域的矩形范围（包含left,top,right,bottom坐标）
+     * @param cornerRadiusArr 圆角半径数组，用于定义四个角的圆角大小
+     *      数组包含8个元素，分别表示4个角的x和y半径
+     *      顺序：左上x,左上y,右上x,右上y,右下x,右下y,左下x,左下y
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     public void drawGradientDrawable(Canvas canvas, RectF rectf, float[] cornerRadiusArr) {
-        //solidcolor
-//        gradientDrawable.setColor(paint.getColor());
-        //区域
-        gradientDrawable.setBounds((int) rectf.left, (int) rectf.top, (int) rectf.right, (int) rectf.bottom);
-        //stroke
+
+        // ========== 设置Drawable绘制边界 ==========
+        // 将矩形区域的浮点坐标转换为整型坐标，设置Drawable的绘制范围
+        // 注意：这里进行了强制类型转换，可能会丢失精度
+        gradientDrawable.setBounds(
+                (int) rectf.left,   // 左边界
+                (int) rectf.top,    // 上边界
+                (int) rectf.right,  // 右边界
+                (int) rectf.bottom  // 下边界
+        );
+
+        // ========== 描边处理 ==========
+        // 检查是否设置了描边颜色（-101表示未设置描边颜色）
         if (stroke_color != -101) {
-            //根据系统shape,对stroke_with,进行四舍五入
+            // 检查是否设置了虚线描边（stroke_dashWidth != -1表示需要绘制虚线）
             if (stroke_dashWidth != -1) {
-                gradientDrawable.setStroke(Math.round(stroke_with), current_stroke_color, stroke_dashWidth, stroke_dashGap);
+                // 设置虚线描边效果：
+                // 参数1: 描边宽度（四舍五入取整）
+                // 参数2: 描边颜色（当前描边颜色）
+                // 参数3: 虚线段的长度
+                // 参数4: 虚线间隔的长度
+                gradientDrawable.setStroke(
+                        Math.round(stroke_with),  // 描边宽度（取整）
+                        current_stroke_color,     // 描边颜色
+                        stroke_dashWidth,         // 虚线长度
+                        stroke_dashGap            // 虚线间隔
+                );
             } else {
-                gradientDrawable.setStroke(Math.round(stroke_with), current_stroke_color);
+                // 设置实线描边效果：
+                // 参数1: 描边宽度（四舍五入取整）
+                // 参数2: 描边颜色
+                gradientDrawable.setStroke(
+                        Math.round(stroke_with),  // 描边宽度
+                        current_stroke_color      // 描边颜色
+                );
             }
         }
-        //cornerRadiusArr 已经判断，如果没有特殊角也是返回一数组
+
+        // ========== 圆角处理 ==========
+        // 设置圆角半径，cornerRadiusArr数组已经经过处理：
+        // 1. 如果没有特殊角设置，也会返回一个统一圆角的数组
+        // 2. 如果设置了特殊角，则包含各个角的独立圆角值
         gradientDrawable.setCornerRadii(cornerRadiusArr);
+
+        // ========== 执行绘制 ==========
+        // 将渐变Drawable绘制到指定的Canvas上
         gradientDrawable.draw(canvas);
     }
-
 
     private float[] getCornerValue(int trueHeight) {
         int leftTop;
@@ -816,14 +1023,14 @@ public class ShadowLayout extends FrameLayout {
     }
 
 
-/​**​
-        * 创建并设置波纹(Ripple)效果
- * 适用于Android 5.0(LOLLIPOP)及以上版本
- *
-         * @param outRadius 圆角半径数组，用于定义波纹效果的形状边界
- *                 数组包含8个元素，分别表示4个角的x和y半径
- *                 顺序：左上x,左上y,右上x,右上y,右下x,右下y,左下x,左下y
- */
+    /**
+     * 创建并设置波纹(Ripple)效果
+     * 适用于Android 5.0(LOLLIPOP)及以上版本
+     *
+     * @param outRadius 圆角半径数组，用于定义波纹效果的形状边界
+     *      数组包含8个元素，分别表示4个角的x和y半径
+     *      顺序：左上x,左上y,右上x,右上y,右下x,右下y,左下x,左下y
+     */
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     private void ripple(float[] outRadius) {
         // ========== 状态和颜色定义 ==========
@@ -908,69 +1115,79 @@ public class ShadowLayout extends FrameLayout {
         firstView.setBackground(rippleDrawable);
     }
 
+    /**
+     * 设置渐变背景效果
+     * 功能：根据配置的渐变参数（颜色、角度）设置GradientDrawable的渐变效果
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
+     *
+     * @param gradientDrawable 需要设置渐变效果的GradientDrawable对象
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     private void gradient(GradientDrawable gradientDrawable) {
+        // 如果不可点击，则不设置渐变效果
         if (!isClickable) {
             return;
         }
 
-        //左上 x,y   leftPadding, topPadding,
-        //右下 x,y   getWidth() - rightPadding, getHeight() - bottomPadding
+        // ========== 渐变颜色配置 ==========
+        // 根据是否设置了中间色(centerColor)决定使用两色还是三色渐变
         int[] colors;
-        if (centerColor == -101) {
+        if (centerColor == -101) { // -101表示未设置中间色
+            // 双色渐变：起始色 -> 结束色
             colors = new int[]{startColor, endColor};
         } else {
+            // 三色渐变：起始色 -> 中间色 -> 结束色
             colors = new int[]{startColor, centerColor, endColor};
         }
+        // 设置渐变颜色数组
         gradientDrawable.setColors(colors);
 
+        // ========== 渐变角度处理 ==========
+        // 处理负角度（转换为等效的正角度）
         if (angle < 0) {
-            int trueAngle = angle % 360;
-            angle = trueAngle + 360;
+            int trueAngle = angle % 360; // 取模得到-359~0之间的值
+            angle = trueAngle + 360;    // 转换为0~359之间的正角度
         }
 
-        //当设置的角度大于0的时候
-        //这个要算出每隔45度
-        int trueAngle = angle % 360;
-        int angleFlag = trueAngle / 45;
+        // 计算实际角度对应的45度区间（0-7分别代表0°-315°，每45°一个区间）
+        int trueAngle = angle % 360;    // 确保角度在0-359范围内
+        int angleFlag = trueAngle / 45; // 计算属于哪个45度区间（0-7）
+
+        // 根据角度区间设置渐变方向
         switch (angleFlag) {
-            case 0://0°
+            case 0: // 0°-44° -> 从左到右渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
-//                linearGradient = new LinearGradient(leftPadding, topPadding, getWidth() - rightPadding, topPadding, colors, null, Shader.TileMode.CLAMP);
-//                paint.setShader(linearGradient);
                 break;
 
-            case 1://45°
+            case 1: // 45°-89° -> 从左下到右上渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.BL_TR);
                 break;
 
-            case 2://90°
+            case 2: // 90°-134° -> 从下到上渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.BOTTOM_TOP);
                 break;
 
-            case 3://135°
+            case 3: // 135°-179° -> 从右下到左上渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.BR_TL);
                 break;
-            case 4://180°
+
+            case 4: // 180°-224° -> 从右到左渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.RIGHT_LEFT);
                 break;
 
-            case 5://225°
+            case 5: // 225°-269° -> 从右上到左下渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.TR_BL);
                 break;
 
-            case 6://270°
+            case 6: // 270°-314° -> 从上到下渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
                 break;
 
-            case 7://315°
+            case 7: // 315°-359° -> 从左上到右下渐变
                 gradientDrawable.setOrientation(GradientDrawable.Orientation.TL_BR);
                 break;
-
         }
-
     }
-
 
     private int dip2px(float dipValue) {
         float scale = getContext().getResources().getDisplayMetrics().density;
@@ -1058,39 +1275,64 @@ public class ShadowLayout extends FrameLayout {
         }
     }
 
+    /**
+     * 设置View背景的兼容方法，处理不同API版本的背景设置
+     * 主要功能：
+     * 1. 显示阴影效果时创建阴影Bitmap并设置为背景
+     * 2. 不显示阴影时根据条件设置普通背景或透明背景
+     *
+     * @param w View的宽度
+     * @param h View的高度
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("deprecation") // 抑制setBackgroundDrawable已弃用的警告
     private void setBackgroundCompat(int w, int h) {
+        // ========== 显示阴影效果处理 ==========
         if (isShowShadow) {
-            //判断传入的颜色值是否有透明度
+            // 检查阴影颜色是否有透明度，如果没有则添加默认透明度
             isAddAlpha(mShadowColor);
-            Bitmap bitmap = createShadowBitmap(w, h, mCornerRadius, mShadowLimit, mDx, mDy, mShadowColor, Color.TRANSPARENT);
+
+            // 创建阴影Bitmap：
+            // 参数说明：宽度、高度、圆角半径、阴影范围、X偏移、Y偏移、阴影颜色、填充色(透明)
+            Bitmap bitmap = createShadowBitmap(w, h, mCornerRadius, mShadowLimit,
+                    mDx, mDy, mShadowColor, Color.TRANSPARENT);
+
+            // 将Bitmap转换为Drawable
             BitmapDrawable drawable = new BitmapDrawable(bitmap);
+
+            // 根据API版本选择设置背景的方法
             if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN) {
-                setBackgroundDrawable(drawable);
+                setBackgroundDrawable(drawable); // JELLY_BEAN及以下使用旧方法
             } else {
-                setBackground(drawable);
+                setBackground(drawable); // JELLY_BEAN以上使用新方法
             }
-        } else {
+        }
+        // ========== 不显示阴影效果处理 ==========
+        else {
+            // 检查是否有子View
             if (getChildAt(0) == null) {
+                // 没有子View时处理
                 if (layoutBackground != null) {
+                    // 将当前View设为firstView
                     firstView = ShadowLayout.this;
+
+                    // 根据可点击状态设置背景
                     if (isClickable) {
                         setmBackGround(layoutBackground, "setBackgroundCompat");
                     } else {
-                        changeSwitchClickable();
+                        changeSwitchClickable(); // 不可点击时切换状态
                     }
                 } else {
-                    //解决不执行onDraw方法的bug就是给其设置一个透明色
+                    // 没有设置背景图片时，设置透明背景
+                    // 解决不执行onDraw方法的bug
                     this.setBackgroundColor(Color.parseColor("#00000000"));
                 }
             } else {
+                // 有子View时直接设置透明背景
                 this.setBackgroundColor(Color.parseColor("#00000000"));
             }
         }
-
     }
-
 
     /**
      * 创建带有阴影效果的Bitmap
@@ -1302,97 +1544,140 @@ public class ShadowLayout extends FrameLayout {
         return output;
     }
 
+    /**
+     * 检查并添加颜色透明度
+     * 功能：当颜色没有透明度(alpha)值时，自动添加默认透明度(0x2A)
+     *
+     * @param color 要检查的颜色值
+     */
     private void isAddAlpha(int color) {
-        //获取单签颜色值的透明度，如果没有设置透明度，默认加上#2a
+        // 检查当前颜色的alpha通道值(255表示完全不透明)
         if (Color.alpha(color) == 255) {
-            String red = Integer.toHexString(Color.red(color));
-            String green = Integer.toHexString(Color.green(color));
-            String blue = Integer.toHexString(Color.blue(color));
+            // 分解RGB通道值并转为16进制字符串
+            String red = Integer.toHexString(Color.red(color));   // 红色通道
+            String green = Integer.toHexString(Color.green(color)); // 绿色通道
+            String blue = Integer.toHexString(Color.blue(color));  // 蓝色通道
 
+            // 处理单字符的16进制值（补前导0）
             if (red.length() == 1) {
                 red = "0" + red;
             }
-
             if (green.length() == 1) {
                 green = "0" + green;
             }
-
             if (blue.length() == 1) {
                 blue = "0" + blue;
             }
+
+            // 组合新的颜色值（添加默认透明度0x2A）
             String endColor = "#2a" + red + green + blue;
+
+            // 转换回颜色整型并保存到成员变量
             mShadowColor = convertToColorInt(endColor);
         }
     }
 
-
-    private static int convertToColorInt(String argb)
-            throws IllegalArgumentException {
-
+    /**
+     * 将颜色字符串转换为颜色整型值
+     * 功能：处理带或不带#号的颜色字符串，并转换为ColorInt
+     *
+     * @param argb 颜色字符串(支持格式：#RRGGBB #AARRGGBB)
+     * @return 颜色整型值
+     * @throws IllegalArgumentException 当颜色字符串格式错误时抛出
+     */
+    private static int convertToColorInt(String argb) throws IllegalArgumentException {
+        // 自动补全#前缀
         if (!argb.startsWith("#")) {
             argb = "#" + argb;
         }
-
+        // 使用系统方法解析颜色
         return Color.parseColor(argb);
     }
 
-
+    /**
+     * 设置View的背景并处理圆角
+     * 功能：根据圆角设置自动选择统一圆角或各角独立圆角的背景设置方式
+     *
+     * @param drawable 要设置的背景Drawable
+     * @param currentTag 当前操作标识(用于日志跟踪)
+     */
     private void setmBackGround(Drawable drawable, String currentTag) {
+        // 设置操作标识到View的Tag中
         firstView.setTag(R.id.action_container, currentTag);
+
+        // 检查View和Drawable有效性
         if (firstView != null && drawable != null) {
-            if (mCornerRadius_leftTop == -1 && mCornerRadius_leftBottom == -1 && mCornerRadius_rightTop == -1 && mCornerRadius_rightBottom == -1) {
+            // 判断是否设置了特殊圆角(-1表示未设置)
+            if (mCornerRadius_leftTop == -1 && mCornerRadius_leftBottom == -1
+                    && mCornerRadius_rightTop == -1 && mCornerRadius_rightBottom == -1) {
+                // 情况1：未设置特殊圆角，使用统一圆角
                 GlideRoundUtils.setRoundCorner(firstView, drawable, mCornerRadius, currentTag);
             } else {
-                int leftTop;
-                if (mCornerRadius_leftTop == -1) {
-                    leftTop = (int) mCornerRadius;
-                } else {
-                    leftTop = (int) mCornerRadius_leftTop;
-                }
-                int leftBottom;
-                if (mCornerRadius_leftBottom == -1) {
-                    leftBottom = (int) mCornerRadius;
-                } else {
-                    leftBottom = (int) mCornerRadius_leftBottom;
-                }
+                // 情况2：设置了特殊圆角，分别处理每个角的圆角半径
 
-                int rightTop;
-                if (mCornerRadius_rightTop == -1) {
-                    rightTop = (int) mCornerRadius;
-                } else {
-                    rightTop = (int) mCornerRadius_rightTop;
-                }
+                // 左上角圆角处理：未设置则使用统一圆角
+                int leftTop = (mCornerRadius_leftTop == -1)
+                        ? (int) mCornerRadius
+                        : (int) mCornerRadius_leftTop;
 
-                int rightBottom;
-                if (mCornerRadius_rightBottom == -1) {
-                    rightBottom = (int) mCornerRadius;
-                } else {
-                    rightBottom = (int) mCornerRadius_rightBottom;
-                }
+                // 左下角圆角处理
+                int leftBottom = (mCornerRadius_leftBottom == -1)
+                        ? (int) mCornerRadius
+                        : (int) mCornerRadius_leftBottom;
 
-                GlideRoundUtils.setCorners(firstView, drawable, leftTop, leftBottom, rightTop, rightBottom, currentTag);
+                // 右上角圆角处理
+                int rightTop = (mCornerRadius_rightTop == -1)
+                        ? (int) mCornerRadius
+                        : (int) mCornerRadius_rightTop;
+
+                // 右下角圆角处理
+                int rightBottom = (mCornerRadius_rightBottom == -1)
+                        ? (int) mCornerRadius
+                        : (int) mCornerRadius_rightBottom;
+
+                // 使用各角独立圆角设置方法
+                GlideRoundUtils.setCorners(
+                        firstView,       // 目标View
+                        drawable,        // 背景Drawable
+                        leftTop,         // 左上角半径
+                        leftBottom,      // 左下角半径
+                        rightTop,        // 右上角半径
+                        rightBottom,     // 右下角半径
+                        currentTag);     // 操作标识
             }
         }
     }
 
     /**
-     * 改变按钮是否为可点击状态
+     * 设置View的可点击状态
+     * 功能：控制View的点击交互状态，并同步更新UI样式
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
      *
-     * @param clickable
+     * @param clickable 是否可点击
      */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     public void setClickable(boolean clickable) {
+        // 1. 检查是否为虚线模式（虚线模式不支持点击状态变化）
         isExceptionByDashLine();
+
+        // 2. 调用父类方法设置基础点击状态
         super.setClickable(clickable);
+
+        // 3. 更新当前点击状态标志
         this.isClickable = clickable;
+
+        // 4. 根据点击状态切换UI样式
         changeSwitchClickable();
+
+        // 5. 处理点击事件监听器
         if (isClickable) {
             super.setOnClickListener(onClickListener);
         }
 
+        // 6. 渐变背景特殊处理
         if (gradientDrawable != null) {
-            if (startColor != -101 && endColor != -101) {
-                gradient(gradientDrawable);
+            if (startColor != -101 && endColor != -101) { // -101表示未设置颜色
+                gradient(gradientDrawable); // 重新应用渐变效果
             }
         }
     }
@@ -1416,21 +1701,43 @@ public class ShadowLayout extends FrameLayout {
         return this;
     }
 
+    /**
+     * 设置渐变色背景
+     * 功能：配置渐变色的角度和颜色参数，并立即应用渐变效果
+     * 适用版本：Android 4.1(JELLY_BEAN)及以上
+     *
+     * @param angle 渐变角度（必须为45的倍数）
+     * @param startColor 渐变起始色（ARGB格式）
+     * @param centerColor 渐变中间色（ARGB格式，可选，传0忽略）
+     * @param endColor 渐变结束色（ARGB格式）
+     * @return 返回当前ShadowLayout实例（支持链式调用）
+     * @throws IllegalArgumentException 当角度不是45的倍数时抛出
+     */
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     public ShadowLayout setGradientColor(int angle, int startColor, int centerColor, int endColor) {
+        // 1. 检查是否为虚线模式（虚线模式不支持渐变色）
         isExceptionByDashLine();
+
+        // 2. 验证渐变角度有效性（必须是45的倍数）
         if (angle % 45 != 0) {
             throw new IllegalArgumentException("Linear gradient requires 'angle' attribute to be a multiple of 45");
         }
+
+        // 3. 保存渐变参数到成员变量
         this.angle = angle;
         this.startColor = startColor;
         this.centerColor = centerColor;
         this.endColor = endColor;
+
+        // 4. 应用渐变效果到Drawable
         gradient(gradientDrawable);
+
+        // 5. 请求重绘View
         postInvalidate();
+
+        // 6. 返回当前实例支持链式调用
         return this;
     }
-
 
     private void isExceptionByDashLine() {
         if (isDashLine()) {
