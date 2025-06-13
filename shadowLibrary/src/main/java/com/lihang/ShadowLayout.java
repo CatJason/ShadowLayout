@@ -170,7 +170,7 @@ public class ShadowLayout extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        // 1. 先测量子View（完全不受阴影影响）
+        // 1. 测量子View
         int childWidth = 0;
         int childHeight = 0;
         if (getChildCount() > 0) {
@@ -180,30 +180,33 @@ public class ShadowLayout extends FrameLayout {
             childHeight = child.getMeasuredHeight();
         }
 
-        // 2. 计算需要的最小空间（内容区域+最大可能阴影）
-        int widthNeeded = childWidth + (int)(isShowShadow ? mShadowLimit * 2 : 0);
-        int heightNeeded = childHeight + (int)(isShowShadow ? mShadowLimit * 2 : 0);
+        // 2. 根据显示方向计算阴影需要的空间
+        float horizontalPadding = (leftShow ? mShadowLimit : 0) + (rightShow ? mShadowLimit : 0);
+        float verticalPadding = (topShow ? mShadowLimit : 0) + (bottomShow ? mShadowLimit : 0);
 
-        // 3. 最终尺寸保持与无偏移时相同（阴影偏移不影响布局尺寸）
+        // 3. 设置最终尺寸
         setMeasuredDimension(
-                resolveSize(widthNeeded, widthMeasureSpec),
-                resolveSize(heightNeeded, heightMeasureSpec)
+                resolveSize(childWidth + (int)horizontalPadding, widthMeasureSpec),
+                resolveSize(childHeight + (int)verticalPadding, heightMeasureSpec)
         );
     }
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-        // 子View始终居中（完全不受阴影偏移影响）
         if (getChildCount() > 0) {
             View child = getChildAt(0);
             int childWidth = child.getMeasuredWidth();
             int childHeight = child.getMeasuredHeight();
 
+            // 根据阴影显示方向计算位置
+            int childLeft = leftShow ? (int)mShadowLimit : 0;
+            int childTop = topShow ? (int)mShadowLimit : 0;
+
             child.layout(
-                    (getWidth() - childWidth) / 2,
-                    (getHeight() - childHeight) / 2,
-                    (getWidth() + childWidth) / 2,
-                    (getHeight() + childHeight) / 2
+                    childLeft,
+                    childTop,
+                    childLeft + childWidth,
+                    childTop + childHeight
             );
         }
     }
@@ -213,27 +216,35 @@ public class ShadowLayout extends FrameLayout {
         super.onDraw(canvas);
         if (getWidth() <= 0 || getHeight() <= 0) return;
 
-        // 内容区域固定（居中且大小不变）
-        int contentWidth = getWidth() - (int)(isShowShadow ? mShadowLimit * 2 : 0);
-        int contentHeight = getHeight() - (int)(isShowShadow ? mShadowLimit * 2 : 0);
-        rectF.set(
-                (getWidth() - contentWidth) / 2f,
-                (getHeight() - contentHeight) / 2f,
-                (getWidth() + contentWidth) / 2f,
-                (getHeight() + contentHeight) / 2f
-        );
+        // 计算实际生效的偏移量（当某方向不可见时对应偏移归零）
+        float effectiveDx = leftShow || rightShow ? mDx : 0;
+        float effectiveDy = topShow || bottomShow ? mDy : 0;
 
-        // 绘制阴影（仅视觉偏移，不影响布局）
+        // 内容区域计算（考虑可见方向）
+        float shadowLeft = leftShow ? mShadowLimit : 0;
+        float shadowTop = topShow ? mShadowLimit : 0;
+        float shadowRight = getWidth() - (rightShow ? mShadowLimit : 0);
+        float shadowBottom = getHeight() - (bottomShow ? mShadowLimit : 0);
+
+        rectF.set(shadowLeft, shadowTop, shadowRight, shadowBottom);
+
         if (isShowShadow && mShadowLimit > 0) {
             shadowPaint.setColor(Color.TRANSPARENT);
-            shadowPaint.setShadowLayer(mShadowLimit/2, mDx, mDy, mShadowColor);
-            canvas.drawRoundRect(rectF, mCornerRadius, mCornerRadius, shadowPaint);
+            // 使用经过方向过滤的偏移量
+            shadowPaint.setShadowLayer(mShadowLimit/2, effectiveDx, effectiveDy, mShadowColor);
+
+            if (hasSpecialCorner()) {
+                Path path = new Path();
+                path.addRoundRect(rectF, getCornerRadii(), Path.Direction.CW);
+                canvas.drawPath(path, shadowPaint);
+            } else {
+                canvas.drawRoundRect(rectF, mCornerRadius, mCornerRadius, shadowPaint);
+            }
         }
 
-        // 绘制内容（位置固定）
-        gradientDrawable.setBounds((int)rectF.left, (int)rectF.top,
-                (int)rectF.right, (int)rectF.bottom);
-        gradientDrawable.setCornerRadius(mCornerRadius);
+        gradientDrawable.setBounds((int)shadowLeft, (int)shadowTop,
+                (int)shadowRight, (int)shadowBottom);
+        gradientDrawable.setCornerRadii(getCornerRadii());
         gradientDrawable.draw(canvas);
     }
 
@@ -283,23 +294,22 @@ public class ShadowLayout extends FrameLayout {
         return mDx;
     }
 
-    // 动态修改方法（仅重绘不重新布局）
     public void setShadowOffsetX(float dx) {
         if (this.mDx != dx) {
             this.mDx = dx;
-            invalidate(); // 只重绘不重新布局
-        }
-    }
-
-    public void setShadowOffsetY(float dy) {
-        if (this.mDy != dy) {
-            this.mDy = dy;
-            invalidate(); // 只重绘不重新布局
+            invalidate();
         }
     }
 
     public float getShadowOffsetY() {
         return mDy;
+    }
+
+    public void setShadowOffsetY(float dy) {
+        if (this.mDy != dy) {
+            this.mDy = dy;
+            invalidate();
+        }
     }
 
     public int getShadowColor() {
@@ -325,8 +335,11 @@ public class ShadowLayout extends FrameLayout {
     }
 
     public void setShadowHiddenLeft(boolean shadowHiddenLeft) {
-        this.leftShow = !shadowHiddenLeft;
-        requestLayout();
+        if (this.leftShow == shadowHiddenLeft) {
+            this.leftShow = !shadowHiddenLeft;
+            requestLayout();
+            invalidate();
+        }
     }
 
     public boolean isShadowHiddenRight() {
@@ -334,8 +347,11 @@ public class ShadowLayout extends FrameLayout {
     }
 
     public void setShadowHiddenRight(boolean shadowHiddenRight) {
-        this.rightShow = !shadowHiddenRight;
-        requestLayout();
+        if (this.rightShow == shadowHiddenRight) {
+            this.rightShow = !shadowHiddenRight;
+            requestLayout();
+            invalidate();
+        }
     }
 
     public boolean isShadowHiddenTop() {
@@ -343,8 +359,11 @@ public class ShadowLayout extends FrameLayout {
     }
 
     public void setShadowHiddenTop(boolean shadowHiddenTop) {
-        this.topShow = !shadowHiddenTop;
-        requestLayout();
+        if (this.topShow == shadowHiddenTop) {
+            this.topShow = !shadowHiddenTop;
+            requestLayout();
+            invalidate();
+        }
     }
 
     public boolean isShadowHiddenBottom() {
@@ -352,8 +371,11 @@ public class ShadowLayout extends FrameLayout {
     }
 
     public void setShadowHiddenBottom(boolean shadowHiddenBottom) {
-        this.bottomShow = !shadowHiddenBottom;
-        requestLayout();
+        if (this.bottomShow == shadowHiddenBottom) {
+            this.bottomShow = !shadowHiddenBottom;
+            requestLayout();
+            invalidate();
+        }
     }
 
     public void setLayoutBackground(int color) {
