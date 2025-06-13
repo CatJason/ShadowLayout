@@ -1,242 +1,152 @@
-package com.leo;
+package com.leo
 
-import android.graphics.Color;
-import android.os.Bundle;
-import android.view.View;
-import android.widget.ImageView;
-import android.widget.SeekBar;
-
-import androidx.appcompat.app.AppCompatActivity;
+import android.graphics.Color
+import android.os.Bundle
+import android.view.View
+import android.widget.ImageView
+import android.widget.SeekBar
+import androidx.appcompat.app.AppCompatActivity
 
 /**
  * 动态设置阴影页
  */
-public class StarShowActivity extends AppCompatActivity implements View.OnClickListener {
-    private com.lihang.ShadowLayout ShadowLayout;
-    private SeekBar skbar_x;
-    private SeekBar skbar_y;
-    private SeekBar skbar_limit;
-    private SeekBar skbar_corner;
-    private int alpha;
-    private SeekBar skbar_alpha;
-    private int red;
-    private SeekBar skbar_red;
-    private int green;
-    private SeekBar skbar_green;
-    private int blue;
-    private SeekBar skbar_blue;
-    private ImageView tab_topShow;
-    private ImageView tab_bottomShow;
-    private ImageView tab_rightShow;
-    private ImageView tab_leftShow;
+class StarShowActivity : AppCompatActivity(), View.OnClickListener {
+    private lateinit var shadowLayout: com.lihang.ShadowLayout
+    private lateinit var skbarX: SeekBar
+    private lateinit var skbarY: SeekBar
+    private lateinit var skbarLimit: SeekBar
+    private lateinit var skbarCorner: SeekBar
+    private var alpha: Int = 0
+    private lateinit var skbarAlpha: SeekBar
+    private var red: Int = 0
+    private lateinit var skbarRed: SeekBar
+    private var green: Int = 0
+    private lateinit var skbarGreen: SeekBar
+    private var blue: Int = 0
+    private lateinit var skbarBlue: SeekBar
+    private lateinit var tabTopShow: ImageView
+    private lateinit var tabBottomShow: ImageView
+    private lateinit var tabRightShow: ImageView
+    private lateinit var tabLeftShow: ImageView
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_starshow);
-        ShadowLayout = findViewById(R.id.ShadowLayout);
-        skbar_x = findViewById(R.id.skbar_x);
-        skbar_y = findViewById(R.id.skbar_y);
-        skbar_limit = findViewById(R.id.skbar_limit);
-        skbar_corner = findViewById(R.id.skbar_corner);
-        skbar_alpha = findViewById(R.id.skbar_alpha);
-        skbar_red = findViewById(R.id.skbar_red);
-        skbar_green = findViewById(R.id.skbar_green);
-        skbar_blue = findViewById(R.id.skbar_blue);
-        tab_topShow = findViewById(R.id.tab_topShow);
-        tab_topShow.setOnClickListener(this);
-        tab_bottomShow = findViewById(R.id.tab_bottomShow);
-        tab_bottomShow.setOnClickListener(this);
-        tab_rightShow = findViewById(R.id.tab_rightShow);
-        tab_rightShow.setOnClickListener(this);
-        tab_leftShow = findViewById(R.id.tab_leftShow);
-        tab_leftShow.setOnClickListener(this);
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_starshow)
+        shadowLayout = findViewById(R.id.ShadowLayout)
+        skbarX = findViewById(R.id.skbar_x)
+        skbarY = findViewById(R.id.skbar_y)
+        skbarLimit = findViewById(R.id.skbar_limit)
+        skbarCorner = findViewById(R.id.skbar_corner)
+        skbarAlpha = findViewById(R.id.skbar_alpha)
+        skbarRed = findViewById(R.id.skbar_red)
+        skbarGreen = findViewById(R.id.skbar_green)
+        skbarBlue = findViewById(R.id.skbar_blue)
+        tabTopShow = findViewById(R.id.tab_topShow)
+        tabTopShow.setOnClickListener(this)
+        tabBottomShow = findViewById(R.id.tab_bottomShow)
+        tabBottomShow.setOnClickListener(this)
+        tabRightShow = findViewById(R.id.tab_rightShow)
+        tabRightShow.setOnClickListener(this)
+        tabLeftShow = findViewById(R.id.tab_leftShow)
+        tabLeftShow.setOnClickListener(this)
 
-
-        skbar_corner.setMax((int) (ShadowLayout.getCornerRadius() * 3));
-        skbar_corner.setProgress((int) ShadowLayout.getCornerRadius());
-        skbar_corner.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                ShadowLayout.setCornerRadius(progress);
+        skbarCorner.max = (shadowLayout.cornerRadius * 3).toInt()
+        skbarCorner.progress = shadowLayout.cornerRadius.toInt()
+        skbarCorner.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                shadowLayout.cornerRadius = progress.toFloat()
             }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
+        skbarLimit.max = (shadowLayout.shadowLimit * 3).toInt()
+        skbarLimit.progress = shadowLayout.shadowLimit.toInt()
+        skbarLimit.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                shadowLayout.shadowLimit = progress.toFloat()
             }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
-            }
-        });
-
-
-        skbar_limit.setMax((int) (ShadowLayout.getShadowLimit() * 3));
-        skbar_limit.setProgress((int) ShadowLayout.getShadowLimit());
-        skbar_limit.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                ShadowLayout.setShadowLimit(progress);
+        skbarX.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                shadowLayout.shadowOffsetX = (progress - 100).toFloat()
             }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
+        skbarY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                shadowLayout.shadowOffsetY = (progress - 100).toFloat()
             }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
-            }
-        });
-
-
-        skbar_x.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                ShadowLayout.setShadowOffsetX(progress - 100);
+        skbarAlpha.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                alpha = progress
+                shadowLayout.shadowColor = Color.argb(alpha, red, green, blue)
             }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
+        skbarRed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                red = progress
+                shadowLayout.shadowColor = Color.argb(alpha, red, green, blue)
             }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
-            }
-        });
-
-
-        skbar_y.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                ShadowLayout.setShadowOffsetY(progress - 100);
+        skbarGreen.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                green = progress
+                shadowLayout.shadowColor = Color.argb(alpha, red, green, blue)
             }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
 
+        skbarBlue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                blue = progress
+                shadowLayout.shadowColor = Color.argb(alpha, red, green, blue)
             }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
-
-        skbar_alpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                alpha = progress;
-                ShadowLayout.setShadowColor(Color.argb(alpha, red, green, blue));
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
-
-        skbar_red.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                red = progress;
-                ShadowLayout.setShadowColor(Color.argb(alpha, red, green, blue));
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
-
-        skbar_green.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                green = progress;
-                ShadowLayout.setShadowColor(Color.argb(alpha, red, green, blue));
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
-
-        skbar_blue.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                blue = progress;
-                ShadowLayout.setShadowColor(Color.argb(alpha, red, green, blue));
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-
-            }
-        });
-
-
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
+        })
     }
 
-
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.tab_topShow:
-                ShadowLayout.setShadowHiddenTop(select(tab_topShow));
-                break;
-
-            case R.id.tab_bottomShow:
-                ShadowLayout.setShadowHiddenBottom(select(tab_bottomShow));
-                break;
-
-            case R.id.tab_leftShow:
-                ShadowLayout.setShadowHiddenLeft(select(tab_leftShow));
-                break;
-
-            case R.id.tab_rightShow:
-                ShadowLayout.setShadowHiddenRight(select(tab_rightShow));
-                break;
+    override fun onClick(v: View) {
+        when (v.id) {
+            R.id.tab_topShow -> shadowLayout.setShadowHiddenTop(select(tabTopShow))
+            R.id.tab_bottomShow -> shadowLayout.setShadowHiddenBottom(select(tabBottomShow))
+            R.id.tab_leftShow -> shadowLayout.setShadowHiddenLeft(select(tabLeftShow))
+            R.id.tab_rightShow -> shadowLayout.setShadowHiddenRight(select(tabRightShow))
         }
     }
 
-
-    public boolean select(ImageView imageView) {
-        if (imageView.isSelected()) {
-            imageView.setSelected(false);
-            return false;
+    private fun select(imageView: ImageView): Boolean {
+        return if (imageView.isSelected) {
+            imageView.isSelected = false
+            false
         } else {
-            imageView.setSelected(true);
-            return true;
+            imageView.isSelected = true
+            true
         }
     }
 }
